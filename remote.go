@@ -415,6 +415,7 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 		o.RemoteURL = r.c.URLs[0]
 	}
 
+	fmt.Println("DEBUG: fetch - newUploadPackSession")
 	s, err := newUploadPackSession(o.RemoteURL, o.Auth, o.InsecureSkipTLS, o.CABundle, o.ProxyOptions)
 	if err != nil {
 		return nil, err
@@ -422,11 +423,13 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 
 	defer ioutil.CheckClose(s, &err)
 
+	fmt.Println("DEBUG: fetch - AdvertisedReferencesContext")
 	ar, err := s.AdvertisedReferencesContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: fetch - newUploadPackRequest")
 	req, err := r.newUploadPackRequest(o, ar)
 	if err != nil {
 		return nil, err
@@ -436,16 +439,19 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: fetch - AllReferences")
 	remoteRefs, err := ar.AllReferences()
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: fetch - references")
 	localRefs, err := r.references()
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: fetch - calculateRefs")
 	refs, specToRefs, err := calculateRefs(o.RefSpecs, remoteRefs, o.Tags)
 	if err != nil {
 		return nil, err
@@ -458,6 +464,7 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 		}
 	}
 
+	fmt.Println("DEBUG: fetch - getWants")
 	req.Wants, err = getWants(r.s, refs, o.Depth)
 	if len(req.Wants) > 0 {
 		req.Haves, err = getHaves(localRefs, remoteRefs, r.s, o.Depth)
@@ -465,6 +472,7 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 			return nil, err
 		}
 
+		fmt.Println("DEBUG: fetch - fetchPack")
 		if err = r.fetchPack(ctx, o, s, req); err != nil {
 			return nil, err
 		}
@@ -478,6 +486,7 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 		}
 	}
 
+	fmt.Println("DEBUG: fetch - updateLocalReferenceStorage")
 	updated, err := r.updateLocalReferenceStorage(o.RefSpecs, refs, remoteRefs, specToRefs, o.Tags, o.Force)
 	if err != nil {
 		return nil, err
@@ -558,6 +567,7 @@ func newClient(url string, insecure bool, cabundle []byte, proxyOpts transport.P
 func (r *Remote) fetchPack(ctx context.Context, o *FetchOptions, s transport.UploadPackSession,
 	req *packp.UploadPackRequest) (err error) {
 
+	fmt.Println("DEBUG: fetchPack - UploadPack")
 	reader, err := s.UploadPack(ctx, req)
 	if err != nil {
 		if errors.Is(err, transport.ErrEmptyUploadPackRequest) {
@@ -569,10 +579,12 @@ func (r *Remote) fetchPack(ctx context.Context, o *FetchOptions, s transport.Upl
 
 	defer ioutil.CheckClose(reader, &err)
 
+	fmt.Println("DEBUG: fetchPack - updateShallow")
 	if err = r.updateShallow(o, reader); err != nil {
 		return err
 	}
 
+	fmt.Println("DEBUG: fetchPack - UpdateObjectStorage")
 	if err = packfile.UpdateObjectStorage(r.s,
 		buildSidebandIfSupported(req.Capabilities, reader, o.Progress),
 	); err != nil {
