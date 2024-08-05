@@ -92,6 +92,7 @@ func Init(s storage.Storer, worktree billy.Filesystem) (*Repository, error) {
 }
 
 func InitWithOptions(s storage.Storer, worktree billy.Filesystem, options InitOptions) (*Repository, error) {
+	fmt.Println("DEBUG: init with options - storer")
 	if err := initStorer(s); err != nil {
 		return nil, err
 	}
@@ -100,10 +101,12 @@ func InitWithOptions(s storage.Storer, worktree billy.Filesystem, options InitOp
 		options.DefaultBranch = plumbing.Master
 	}
 
+	fmt.Println("DEBUG: init with options - validate default branch")
 	if err := options.DefaultBranch.Validate(); err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: init with options - new repo")
 	r := newRepository(s, worktree)
 	_, err := r.Reference(plumbing.HEAD, false)
 	switch err {
@@ -115,6 +118,7 @@ func InitWithOptions(s storage.Storer, worktree billy.Filesystem, options InitOp
 	}
 
 	h := plumbing.NewSymbolicReference(plumbing.HEAD, options.DefaultBranch)
+	fmt.Println("DEBUG: init with options - set reference")
 	if err := s.SetReference(h); err != nil {
 		return nil, err
 	}
@@ -124,6 +128,7 @@ func InitWithOptions(s storage.Storer, worktree billy.Filesystem, options InitOp
 		return r, nil
 	}
 
+	fmt.Println("DEBUG: init with options - setWorktreeAndStoragePaths")
 	return r, setWorktreeAndStoragePaths(r, worktree)
 }
 
@@ -148,10 +153,12 @@ func setWorktreeAndStoragePaths(r *Repository, worktree billy.Filesystem) error 
 		return nil
 	}
 
+	fmt.Println("DEBUG: init with options - createDotGitFile")
 	if err := createDotGitFile(worktree, fs.Filesystem()); err != nil {
 		return err
 	}
 
+	fmt.Println("DEBUG: init with options - setConfigWorktree")
 	return setConfigWorktree(r, worktree, fs.Filesystem())
 }
 
@@ -262,8 +269,10 @@ func PlainInitWithOptions(path string, opts *PlainInitOptions) (*Repository, err
 		dot, _ = wt.Chroot(GitDirName)
 	}
 
+	fmt.Println("DEBUG: init - new storage")
 	s := filesystem.NewStorage(dot, cache.NewObjectLRUDefault())
 
+	fmt.Println("DEBUG: init with options")
 	r, err := InitWithOptions(s, wt, opts.InitOptions)
 	if err != nil {
 		return nil, err
@@ -283,6 +292,7 @@ func PlainInitWithOptions(path string, opts *PlainInitOptions) (*Repository, err
 		cfg.Extensions.ObjectFormat = opts.ObjectFormat
 	}
 
+	fmt.Println("DEBUG: init SetConfig")
 	err = r.Storer.SetConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -456,6 +466,7 @@ func dotGitCommonDirectory(fs billy.Filesystem) (commonDir billy.Filesystem, err
 //
 // TODO(mcuadros): move isBare to CloneOptions in v5
 func PlainClone(path string, isBare bool, o *CloneOptions) (*Repository, error) {
+	fmt.Println("DEBUG: plain clone")
 	return PlainCloneContext(context.Background(), path, isBare, o)
 }
 
@@ -470,6 +481,7 @@ func PlainClone(path string, isBare bool, o *CloneOptions) (*Repository, error) 
 // TODO(mcuadros): move isBare to CloneOptions in v5
 // TODO(smola): refuse upfront to clone on a non-empty directory in v5, see #1027
 func PlainCloneContext(ctx context.Context, path string, isBare bool, o *CloneOptions) (*Repository, error) {
+	fmt.Println("DEBUG: CheckIfCleanisNeeded")
 	cleanup, cleanupParent, err := checkIfCleanupIsNeeded(path)
 	if err != nil {
 		return nil, err
@@ -478,11 +490,14 @@ func PlainCloneContext(ctx context.Context, path string, isBare bool, o *CloneOp
 	if o.Mirror {
 		isBare = true
 	}
+
+	fmt.Println("DEBUG: plain init")
 	r, err := PlainInit(path, isBare)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: clone")
 	err = r.clone(ctx, o)
 	if err != nil && err != ErrRepositoryAlreadyExists {
 		if cleanup {
@@ -883,6 +898,7 @@ func (r *Repository) resolveToCommitHash(h plumbing.Hash) (plumbing.Hash, error)
 
 // Clone clones a remote repository
 func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
+	fmt.Println("DEBUG: clone - validate")
 	if err := o.Validate(); err != nil {
 		return err
 	}
@@ -894,6 +910,7 @@ func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
 		Mirror: o.Mirror,
 	}
 
+	fmt.Println("DEBUG: clone - createRemote")
 	if _, err := r.CreateRemote(c); err != nil {
 		return err
 	}
@@ -922,6 +939,7 @@ func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
 		}
 	}
 
+	fmt.Println("DEBUG: clone - fetchAndUpdateReferences")
 	ref, err := r.fetchAndUpdateReferences(ctx, &FetchOptions{
 		RefSpecs:        c.Fetch,
 		Depth:           o.Depth,
@@ -938,16 +956,19 @@ func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
 	}
 
 	if r.wt != nil && !o.NoCheckout {
+		fmt.Println("DEBUG: clone - Worktree")
 		w, err := r.Worktree()
 		if err != nil {
 			return err
 		}
 
+		fmt.Println("DEBUG: clone - head")
 		head, err := r.Head()
 		if err != nil {
 			return err
 		}
 
+		fmt.Println("DEBUG: clone - reset")
 		if err := w.Reset(&ResetOptions{
 			Mode:   MergeReset,
 			Commit: head.Hash(),
@@ -956,6 +977,7 @@ func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
 		}
 
 		if o.RecurseSubmodules != NoRecurseSubmodules {
+			fmt.Println("DEBUG: clone - updateSubmodules")
 			if err := w.updateSubmodules(&SubmoduleUpdateOptions{
 				RecurseSubmodules: o.RecurseSubmodules,
 				Depth: func() int {
@@ -971,6 +993,7 @@ func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
 		}
 	}
 
+	fmt.Println("DEBUG: clone - updateRemoteConfigIfNeeded")
 	if err := r.updateRemoteConfigIfNeeded(o, c, ref); err != nil {
 		return err
 	}
@@ -990,6 +1013,7 @@ func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
 			b.Remote = o.RemoteName
 		}
 
+		fmt.Println("DEBUG: clone - CreateBranch")
 		if err := r.CreateBranch(b); err != nil {
 			return err
 		}
@@ -1057,16 +1081,19 @@ func (r *Repository) fetchAndUpdateReferences(
 	ctx context.Context, o *FetchOptions, ref plumbing.ReferenceName,
 ) (*plumbing.Reference, error) {
 
+	fmt.Println("DEBUG: fetchAndUpdateReferences - validate")
 	if err := o.Validate(); err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: fetchAndUpdateReferences - Remote")
 	remote, err := r.Remote(o.RemoteName)
 	if err != nil {
 		return nil, err
 	}
 
 	objsUpdated := true
+	fmt.Println("DEBUG: fetchAndUpdateReferences - fetch")
 	remoteRefs, err := remote.fetch(ctx, o)
 	if err == NoErrAlreadyUpToDate {
 		objsUpdated = false
@@ -1076,11 +1103,13 @@ func (r *Repository) fetchAndUpdateReferences(
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: fetchAndUpdateReferences - expand_ref")
 	resolvedRef, err := expand_ref(remoteRefs, ref)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: fetchAndUpdateReferences - updateReferences")
 	refsUpdated, err := r.updateReferences(remote.c.Fetch, resolvedRef)
 	if err != nil {
 		return nil, err

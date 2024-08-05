@@ -45,13 +45,16 @@ func advertisedReferences(ctx context.Context, s *session, serviceName string) (
 		s.endpoint.String(), infoRefsPath, serviceName,
 	)
 
+	fmt.Sprintf("DEBUG: advertisedReferences - url %v \n", url)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: advertisedReferences - new request")
 	s.ApplyAuthToRequest(req)
 	applyHeadersToRequest(req, nil, s.endpoint.Host, serviceName)
+	fmt.Sprintf("DEBUG: advertisedReferences - request %v \n", req)
 	res, err := s.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
@@ -64,7 +67,9 @@ func advertisedReferences(ctx context.Context, s *session, serviceName string) (
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: advertisedReferences - NewAdvRefs")
 	ar := packp.NewAdvRefs()
+	fmt.Println("DEBUG: advertisedReferences - decode")
 	if err = ar.Decode(res.Body); err != nil {
 		if err == packp.ErrEmptyAdvRefs {
 			err = transport.ErrEmptyRemoteRepository
@@ -84,6 +89,7 @@ func advertisedReferences(ctx context.Context, s *session, serviceName string) (
 		return nil, transport.ErrEmptyRemoteRepository
 	}
 
+	fmt.Println("DEBUG: advertisedReferences - FilterUnsupportedCapabilities")
 	transport.FilterUnsupportedCapabilities(ar.Capabilities)
 	s.advRefs = ar
 

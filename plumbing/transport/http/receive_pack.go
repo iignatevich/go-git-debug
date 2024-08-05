@@ -29,6 +29,7 @@ func (s *rpSession) AdvertisedReferences() (*packp.AdvRefs, error) {
 }
 
 func (s *rpSession) AdvertisedReferencesContext(ctx context.Context) (*packp.AdvRefs, error) {
+	fmt.Println("DEBUG: AdvertisedReferencesContext - http")
 	return advertisedReferences(ctx, s.session, transport.ReceivePackServiceName)
 }
 
