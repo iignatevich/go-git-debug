@@ -45,16 +45,18 @@ func advertisedReferences(ctx context.Context, s *session, serviceName string) (
 		s.endpoint.String(), infoRefsPath, serviceName,
 	)
 
-	fmt.Sprintf("DEBUG: advertisedReferences - url %v \n", url)
+	fmt.Printf("DEBUG: advertisedReferences - url %v \n", url)
+	fmt.Println("DEBUG: advertisedReferences - new request")
 	req, err := http.NewRequest(http.MethodGet, url, nil)
+	copyReq, _ := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("DEBUG: advertisedReferences - new request")
 	s.ApplyAuthToRequest(req)
 	applyHeadersToRequest(req, nil, s.endpoint.Host, serviceName)
-	fmt.Sprintf("DEBUG: advertisedReferences - request %v \n", req)
+	applyHeadersToRequest(copyReq, nil, s.endpoint.Host, serviceName)
+	fmt.Printf("DEBUG: advertisedReferences - request (copy withotut auth) %v \n", copyReq)
 	res, err := s.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
